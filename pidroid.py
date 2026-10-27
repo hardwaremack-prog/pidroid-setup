@@ -147,6 +147,33 @@ systemctl restart waydroid-container
 echo ">>> Android now reports itself as a Pixel 5. Restart the session."
 ''',
 
+    "screen_lock": BOOT_FIND + r'''
+set -e
+OUT=""
+for s in /sys/class/drm/card*-HDMI-A-*/status; do
+  [ "$(cat "$s" 2>/dev/null)" = connected ] && { OUT=$(basename "$(dirname "$s")" | sed 's/^card[0-9]*-//'); break; }
+done
+OUT=${OUT:-HDMI-A-1}
+cp -n "$CMD" "$CMD.pidroid.bak" || true
+sed -i -E '1 s/ ?video=HDMI-A-[0-9]:[^ ]*//g' "$CMD"
+sed -i "1 s/\$/ video=$OUT:1920x1080@60/" "$CMD"
+echo "Monitor: $OUT"
+echo "Boot line now ends with: $(grep -o 'video=[^ ]*' "$CMD")"
+echo PIDROID_CHANGED
+echo ">>> Reboot and the Pi's screen will start at 1920x1080."
+''',
+
+    "screen_unlock": BOOT_FIND + r'''
+if grep -q 'video=HDMI-A-' "$CMD"; then
+  sed -i -E '1 s/ ?video=HDMI-A-[0-9]:[^ ]*//g' "$CMD"
+  echo "Removed the screen lock from $CMD."
+  echo PIDROID_CHANGED
+  echo ">>> Reboot and the Pi picks its screen size by itself again."
+else
+  echo "The Pi's screen isn't locked."
+fi
+''',
+
     "spoof_undo": r'''
 P=/var/lib/waydroid/waydroid_base.prop
 sed -i '/^''' + MARK + r'''/,/^# end PiDroid/d' "$P"
@@ -473,6 +500,15 @@ CSS = b"""
 .log      { font-family: monospace; font-size: 10pt; }
 """
 
+SIZES = {
+    "Auto": (0, 0),
+    "1280 × 720": (1280, 720),
+    "1600 × 900": (1600, 900),
+    "1920 × 1080": (1920, 1080),
+    "2560 × 1440": (2560, 1440),
+}
+SIZES_LIST = list(SIZES)
+
 FIX_LABELS = {
     "pagesize": "Switch to 4K kernel",
     "psi": "Turn on PSI",
@@ -487,7 +523,7 @@ FIX_LABELS = {
 class App(Gtk.Window):
     def __init__(self):
         super().__init__(title=APP)
-        self.set_default_size(880, 760)
+        self.set_default_size(900, 820)
         self.set_icon_name("phone")
         self.busy = False
         self.buttons = []
@@ -586,6 +622,35 @@ class App(Gtk.Window):
             self.buttons.append(b)
         rf.add(rb)
         root.pack_start(rf, False, False, 0)
+
+        # screen size
+        zf = Gtk.Frame(label=" 4 · Screen size ")
+        zb = Gtk.Box(spacing=8, margin=10)
+        zb.pack_start(Gtk.Label(label="Android window:"), False, False, 0)
+        self.size_combo = Gtk.ComboBoxText()
+        for label in SIZES:
+            self.size_combo.append_text(label)
+        self.size_combo.set_active(SIZES_LIST.index("1920 × 1080"))
+        self.size_combo.set_tooltip_text("Smaller sizes run Roblox much smoother on the Pi.")
+        zb.pack_start(self.size_combo, False, False, 0)
+        ab = Gtk.Button(label="Apply to Android")
+        ab.set_tooltip_text("Locks the Android window (and Roblox) to this size. Android restarts.")
+        ab.connect("clicked", lambda *_: self.apply_android_size())
+        zb.pack_start(ab, False, False, 0)
+        self.buttons.append(ab)
+        zb.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 6)
+        for label, key, tip in [
+            ("Lock Pi screen 1920×1080", "screen_lock",
+             "Makes the Pi's own screen always start at 1920x1080 (needs a reboot)."),
+            ("Unlock Pi screen", "screen_unlock", "Lets the Pi pick its screen size again (needs a reboot)."),
+        ]:
+            b = Gtk.Button(label=label)
+            b.set_tooltip_text(tip)
+            b.connect("clicked", lambda _b, k=key, t=label: self.run_root(k, t))
+            zb.pack_start(b, False, False, 0)
+            self.buttons.append(b)
+        zf.add(zb)
+        root.pack_start(zf, False, False, 0)
 
         # log
         lf = Gtk.Frame(label=" Log ")
@@ -841,6 +906,22 @@ adb -s "$IP:5555" install-multiple -r ''' + quoted + r'''
 '''
         self._run(["bash", "-c", script], f"Install bundle ({len(apks)} parts)", "apk",
                   after=lambda rc: shutil.rmtree(tmp, ignore_errors=True))
+
+    def apply_android_size(self):
+        label = self.size_combo.get_active_text() or "Auto"
+        w, h = SIZES[label]
+        if w:
+            sets = (f'waydroid prop set persist.waydroid.width {w}\n'
+                    f'waydroid prop set persist.waydroid.height {h}\n'
+                    f'echo "Android window locked to {w} x {h}."\n')
+        else:
+            sets = ('waydroid prop set persist.waydroid.width ""\n'
+                    'waydroid prop set persist.waydroid.height ""\n'
+                    'echo "Android window size is automatic again."\n')
+        script = WAIT_SESSION + "set -e\n" + sets + (
+            "waydroid session stop >/dev/null 2>&1 || true\n"
+            'echo ">>> Click Open Android to use the new size."\n')
+        self._run(["bash", "-c", script], f"Android window: {label}", "size")
 
     def desktop_shortcut(self):
         apps = os.path.expanduser("~/.local/share/applications")

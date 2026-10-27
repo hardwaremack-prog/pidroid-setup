@@ -39,6 +39,11 @@ PiDroid Setup then appears on the desktop and in the menu.
 - **Phone identity** – reports Android as a Pixel 5 if Roblox crashes on launch (with Undo)
 - **Launch Roblox** / **Roblox on Desktop**
 
+**4 · Screen size**
+- **Android window** – Auto, 1280×720, 1600×900, 1920×1080 or 2560×1440, then **Apply to Android**
+  (smaller sizes run Roblox smoother on the Pi)
+- **Lock Pi screen 1920×1080** / **Unlock Pi screen** – sets the Pi's own display size at boot
+
 On X11, **Open Android** runs Android inside a Weston window as a fallback.
 
 Every command and its output appears in the log; **Copy log** puts it on the clipboard.
