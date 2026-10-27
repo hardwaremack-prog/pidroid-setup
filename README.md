@@ -17,6 +17,13 @@ A point-and-click setup tool for running **Waydroid** (Android) and **Roblox** o
 
 From a terminal it's just `bash install.sh`.
 
+## Uninstall
+
+Double-click **`uninstall.sh`** (choose Execute), or click **Uninstall…** in the app. It removes
+PiDroid Setup and its icons, then **asks** whether to also:
+- remove Waydroid and Android (deletes Roblox and everything inside Android, frees 2–3 GB)
+- put the boot settings back (4K kernel, PSI, screen lock) — reboot afterwards
+
 ## What it does
 
 **1 · System check** — green / yellow / red lights, with a fix button on anything red:
@@ -65,4 +72,5 @@ Boot-file changes are backed up (`*.pidroid.bak`) and have Undo buttons.
 ## Files
 
 - `pidroid.py` – the GTK 3 app (Python 3, no extra packages on Pi OS)
-- `install.sh` – adds the menu and desktop launchers
+- `install.sh` – double-click installer (asks for your password once)
+- `uninstall.sh` – removes it, and optionally Waydroid and the boot changes

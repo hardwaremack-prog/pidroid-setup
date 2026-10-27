@@ -94,6 +94,7 @@ if [ ! -f "$DIR/pidroid.py" ]; then
 fi
 cp "$DIR/pidroid.py" "$DEST/"
 [ -f "$DIR/pidroid.svg" ] && cp "$DIR/pidroid.svg" "$DEST/"
+[ -f "$DIR/uninstall.sh" ] && cp "$DIR/uninstall.sh" "$DEST/" && chmod +x "$DEST/uninstall.sh"
 chmod +x "$DEST/pidroid.py"
 ICON=phone; [ -f "$DEST/pidroid.svg" ] && ICON="$DEST/pidroid.svg"
 
@@ -115,6 +116,7 @@ rm -f "$DESK/pidroid.desktop"   # icon name used by older versions
 green "Installed!"
 echo "  - PiDroid Setup icon on your Desktop"
 echo "  - In the Pi menu under Preferences / System Tools"
+echo "  - To remove it later: the Uninstall button in the app, or uninstall.sh"
 echo
 echo "Opening PiDroid Setup now..."
 setsid python3 "$DEST/pidroid.py" >/dev/null 2>&1 < /dev/null &

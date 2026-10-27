@@ -695,7 +695,8 @@ class App(Gtk.Window):
                           ("Undo 4K kernel", lambda: self.run_root("pagesize_undo", "Undo 4K kernel")),
                           ("Undo Wayland", lambda: self.run_root("wayland_undo", "Undo Wayland")),
                           ("Restart service", lambda: self.run_root("restart_container", "Restart service")),
-                          ("Waydroid log", lambda: self.run_root("waydroid log | tail -60", "Waydroid log", raw=True))]:
+                          ("Waydroid log", lambda: self.run_root("waydroid log | tail -60", "Waydroid log", raw=True)),
+                          ("Uninstall…", self.uninstall)]:
             b = Gtk.Button(label=label)
             b.connect("clicked", lambda _b, f=fn: f())
             extra.pack_start(b, False, False, 0)
@@ -946,6 +947,20 @@ adb -s "$IP:5555" install-multiple -r ''' + quoted + r'''
             "waydroid session stop >/dev/null 2>&1 || true\n"
             'echo ">>> Click Open Android to use the new size."\n')
         self._run(["bash", "-c", script], f"Android window: {label}", "size")
+
+    def uninstall(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        cands = [os.path.join(here, "uninstall.sh"),
+                 os.path.expanduser("~/.local/share/pidroid/uninstall.sh")]
+        script = next((c for c in cands if os.path.isfile(c)), None)
+        if not script:
+            self.say("uninstall.sh wasn't found. Run it from the PiDroid Setup folder you unzipped.\n",
+                     self.tag_bad)
+            return
+        # with no terminal attached, uninstall.sh opens its own terminal window to ask its questions
+        subprocess.Popen(["bash", script], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+        self.say("The uninstaller opened in a terminal window. Answer its questions there.\n", self.tag_cmd)
 
     def desktop_shortcut(self):
         apps = os.path.expanduser("~/.local/share/applications")
