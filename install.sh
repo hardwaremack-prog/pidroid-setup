@@ -10,6 +10,7 @@ python3 -c 'import gi; gi.require_version("Gtk","3.0")' 2>/dev/null || \
 
 mkdir -p "$DEST" "$HOME/.local/share/applications" "$HOME/Desktop"
 cp "$DIR/pidroid.py" "$DEST/"
+[ -f "$DIR/pidroid.svg" ] && cp "$DIR/pidroid.svg" "$DEST/"
 chmod +x "$DEST/pidroid.py"
 
 cat > "$HOME/.local/share/applications/pidroid.desktop" <<EOF
@@ -18,7 +19,7 @@ Type=Application
 Name=PiDroid Setup
 Comment=Set up Waydroid and Roblox
 Exec=python3 $DEST/pidroid.py
-Icon=phone
+Icon=$( [ -f "$DEST/pidroid.svg" ] && echo "$DEST/pidroid.svg" || echo phone )
 Terminal=false
 Categories=System;Settings;
 EOF
