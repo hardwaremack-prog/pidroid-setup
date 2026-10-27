@@ -86,9 +86,11 @@ echo ">>> Waydroid installed. Next: Download Android."
 
     "init_gapps": r'''
 set -e
+waydroid session stop >/dev/null 2>&1 || true
 systemctl enable --now waydroid-container || true
 echo "Downloading Android with Google Play (about 1 GB, be patient)..."
 waydroid init -s GAPPS -f
+grep -qi GAPPS /var/lib/waydroid/waydroid.cfg || { echo "The download did not switch to the Google Play image."; exit 1; }
 systemctl restart waydroid-container
 echo ">>> Android image installed (with Google Play)."
 ''',
@@ -155,6 +157,33 @@ echo "Phone identity removed."
     "android_id": r'''
 waydroid shell -- sh -c "ANDROID_RUNTIME_ROOT=/apex/com.android.runtime ANDROID_DATA=/data ANDROID_TZDATA_ROOT=/apex/com.android.tzdata ANDROID_I18N_ROOT=/apex/com.android.i18n sqlite3 /data/data/com.google.android.gsf/databases/gservices.db \"select * from main where name = 'android_id';\""
 echo ">>> Copy the number after 'android_id|' into the Google page that just opened."
+''',
+
+    "playcheck": r'''
+CFG=/var/lib/waydroid/waydroid.cfg
+echo "Android image:"
+grep -E '^(system_ota|images_path)' "$CFG" 2>/dev/null | sed 's/^/  /'
+grep -qi 'GAPPS' "$CFG" && echo "  -> this image was downloaded WITH Google Play" \
+  || echo "  -> this image was downloaded WITHOUT Google Play (vanilla)"
+if ! waydroid status 2>/dev/null | grep -q 'Session:.*RUNNING'; then
+  echo; echo ">>> Click 'Open Android', wait for the home screen, then click Check Play Store again."
+  exit 1
+fi
+PK=$(waydroid shell -- pm list packages 2>/dev/null)
+echo; echo "Google parts inside Android:"
+for p in com.android.vending com.google.android.gms com.google.android.gsf; do
+  if echo "$PK" | grep -q "^package:$p\s*$"; then echo "  OK       $p"; else echo "  MISSING  $p"; fi
+done
+if echo "$PK" | grep -q '^package:com.android.vending\s*$'; then
+  waydroid shell -- pm enable com.android.vending >/dev/null 2>&1 || true
+  waydroid shell -- pm enable com.google.android.gms >/dev/null 2>&1 || true
+  echo; echo ">>> The Play Store is installed and switched on. Click 'Open Play Store'."
+  echo "    If it says the device isn't certified, do 'Get Play Store ID' and wait 15-60 minutes."
+else
+  echo; echo ">>> Google Play is not in this Android image."
+  echo "    Click '④ Android + Play Store' to download Android with Google Play."
+  echo "    Your installed apps and their data are kept."
+fi
 ''',
 
     "restart_container": r'''
@@ -240,6 +269,43 @@ waydroid status | grep -q 'Session:.*RUNNING' || { echo "Session did not start. 
 sleep 4
 '''
 
+# Opens the Android window (and starts Android if needed). App launches only show
+# up inside this window, so without it a launch looks like nothing happened.
+SHOW_UI = r'''
+export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+[ -z "$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/wayland-pidroid" ] && export WAYLAND_DISPLAY=wayland-pidroid
+if [ -z "$WAYLAND_DISPLAY" ]; then
+  echo "No Wayland desktop found. Use 'Open Android' first (it can run Android in a window on X11)."
+  exit 1
+fi
+echo "Opening the Android window..."
+setsid waydroid show-full-ui >/dev/null 2>&1 &
+for i in $(seq 1 60); do
+  waydroid status 2>/dev/null | grep -q 'Session:.*RUNNING' && break
+  sleep 2
+done
+waydroid status | grep -q 'Session:.*RUNNING' || { echo "Android did not start. Click 'Waydroid log' and copy the log."; exit 1; }
+# wait for Android to finish booting so the app list is ready
+for i in $(seq 1 45); do
+  waydroid app list >/dev/null 2>&1 && break
+  sleep 2
+done
+'''
+
+LAUNCH = r'''
+if ! waydroid app list 2>/dev/null | grep -q "PKG"; then
+  echo "Can't find NAME in Android's app list."
+  if [ "PKG" = "com.android.vending" ]; then
+    echo ">>> Click 'Check Play Store' to see why and fix it."
+  else
+    echo ">>> Install it from the Play Store or with 'Install APK file...' first."
+  fi
+  exit 1
+fi
+waydroid app launch PKG
+echo "NAME is opening in the Android window."
+'''
+
 USER_SCRIPTS = {
     "roblox_tune": WAIT_SESSION + r'''
 set -e
@@ -252,12 +318,9 @@ echo ">>> Stop and restart the session for this to apply."
 
     "session_stop": "waydroid session stop; echo Session stopped.",
 
-    "roblox_launch": r'''
-export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-[ -z "$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/wayland-pidroid" ] && export WAYLAND_DISPLAY=wayland-pidroid
-''' + WAIT_SESSION + "waydroid app launch " + ROBLOX_PKG + "\necho Launching Roblox...",
+    "roblox_launch": SHOW_UI + LAUNCH.replace("PKG", ROBLOX_PKG).replace("NAME", "Roblox"),
 
-    "playstore": WAIT_SESSION + "waydroid app launch com.android.vending\necho Opening Play Store...",
+    "playstore": SHOW_UI + LAUNCH.replace("PKG", "com.android.vending").replace("NAME", "Play Store"),
 }
 
 
@@ -369,7 +432,7 @@ def gather_checks():
 
     inited = os.path.exists("/var/lib/waydroid/images/system.img") or \
         bool(glob.glob("/var/lib/waydroid/images/*.img"))
-    gapps = "gapps" in read("/var/lib/waydroid/waydroid.cfg").lower()
+    gapps = bool(re.search(r"^system_ota\s*=.*GAPPS", read("/var/lib/waydroid/waydroid.cfg"), re.M | re.I))
     out.append(dict(name="Android image", state="ok" if inited else ("bad" if have else "warn"),
                     detail=("installed" + (" with Google Play" if gapps else " (no Google Play)"))
                     if inited else "not downloaded",
@@ -500,7 +563,9 @@ class App(Gtk.Window):
             ("Get Play Store ID", self.play_cert,
              "Shows your Android ID and opens Google's page to register it, so Play Store logs in."),
             ("Open Play Store", lambda: self.run_user("playstore", "Play Store"),
-             "Search for Roblox and install it."),
+             "Opens the Android window and the Play Store. Search for Roblox and install it."),
+            ("Check Play Store", lambda: self.run_root("playcheck", "Check Play Store"),
+             "Checks whether Google Play is installed and switched on, and tells you how to fix it."),
             ("Install APK file…", self.install_apk,
              "Install Roblox from an .apk, .apkm or .xapk you downloaded (arm64-v8a)."),
             ("Tune for Roblox", lambda: self.run_user("roblox_tune", "Tune for Roblox"),
