@@ -9,13 +9,13 @@ A point-and-click setup tool for running **Waydroid** (Android) and **Roblox** o
 
 ## Install
 
-```bash
-unzip PiDroid-Setup.zip      # or: git clone https://github.com/hardwaremack-prog/pidroid-setup
-cd pidroid-setup
-bash install.sh              # or double-click install.sh and choose Execute
-```
+1. Unzip **PiDroid Setup.zip** (right-click → Extract Here), or
+   `git clone https://github.com/hardwaremack-prog/pidroid-setup`
+2. Open the `pidroid-setup` folder and **double-click `install.sh`**, then choose **Execute**.
+3. A terminal window opens and asks for your password once (nothing shows while you type).
+4. It installs what's needed, adds a **PiDroid Setup** icon to the Desktop and menu, and opens the app.
 
-PiDroid Setup then appears on the desktop and in the menu.
+From a terminal it's just `bash install.sh`.
 
 ## What it does
 
