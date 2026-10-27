@@ -35,7 +35,8 @@ PiDroid Setup then appears on the desktop and in the menu.
 **3 · Roblox**
 - **Get Play Store ID** – prints your Android ID and opens Google's registration page
 - **Open Play Store** / **Install APK file…** (`.apk`, `.apkm`, `.xapk`, `.apks`)
-- **Tune for Roblox** – mouse acts as touch inside Roblox, Android stays awake
+- **Tune for Roblox** – Android stays awake, normal mouse in Roblox
+- **Mouse: normal** / **Mouse: touch** – PC-style mouse, or mouse-as-finger if a game needs it
 - **Phone identity** – reports Android as a Pixel 5 if Roblox crashes on launch (with Undo)
 - **Launch Roblox** / **Roblox on Desktop**
 

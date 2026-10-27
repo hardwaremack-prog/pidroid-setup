@@ -336,11 +336,31 @@ echo "NAME is opening in the Android window."
 USER_SCRIPTS = {
     "roblox_tune": WAIT_SESSION + r'''
 set -e
-waydroid prop set persist.waydroid.fake_touch "com.roblox.*"
 waydroid prop set persist.waydroid.multi_windows false
 waydroid prop set persist.waydroid.suspend false
-echo "Mouse clicks now act as screen taps inside Roblox."
-echo ">>> Stop and restart the session for this to apply."
+waydroid prop set persist.waydroid.fake_touch ""
+echo "Android stays awake, and the mouse works as a normal mouse in Roblox."
+echo "(If the mouse misbehaves in a game, try 'Mouse: touch'.)"
+waydroid session stop >/dev/null 2>&1 || true
+echo ">>> Open Android or Launch Roblox to use the new settings."
+''',
+
+    "mouse_normal": WAIT_SESSION + r'''
+set -e
+waydroid prop set persist.waydroid.fake_touch ""
+waydroid session stop >/dev/null 2>&1 || true
+echo "Mouse is now a normal mouse: point, click, scroll, and hold the right"
+echo "button and move to turn the camera in Roblox."
+echo ">>> Launch Roblox again to use it."
+''',
+
+    "mouse_touch": WAIT_SESSION + r'''
+set -e
+waydroid prop set persist.waydroid.fake_touch "com.roblox.*"
+waydroid session stop >/dev/null 2>&1 || true
+echo "Mouse now acts like a finger in Roblox: click = tap, hold left and drag"
+echo "to turn the camera, and use the on-screen joystick to walk."
+echo ">>> Launch Roblox again to use it."
 ''',
 
     "session_stop": "waydroid session stop; echo Session stopped.",
@@ -605,7 +625,11 @@ class App(Gtk.Window):
             ("Install APK file…", self.install_apk,
              "Install Roblox from an .apk, .apkm or .xapk you downloaded (arm64-v8a)."),
             ("Tune for Roblox", lambda: self.run_user("roblox_tune", "Tune for Roblox"),
-             "Makes the mouse act as touch inside Roblox and keeps Android awake."),
+             "Keeps Android awake and sets a normal mouse for Roblox."),
+            ("Mouse: normal", lambda: self.run_user("mouse_normal", "Mouse: normal"),
+             "The mouse works like on a PC: point and click, right-drag turns the camera."),
+            ("Mouse: touch", lambda: self.run_user("mouse_touch", "Mouse: touch"),
+             "The mouse acts like a finger: click = tap, left-drag turns the camera."),
             ("Phone identity (if it crashes)", lambda: self.run_root("spoof", "Phone identity"),
              "Makes Android report as a Pixel 5. Try this if Roblox closes right away."),
             ("Undo phone identity", lambda: self.run_root("spoof_undo", "Undo phone identity"),
