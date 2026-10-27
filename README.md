@@ -5,6 +5,8 @@ A point-and-click setup tool for running **Waydroid** (Android) and **Roblox** o
 
 ![checks](https://img.shields.io/badge/Raspberry%20Pi-500%20%2F%205-c51a4a) ![os](https://img.shields.io/badge/OS-Trixie-blue)
 
+![PiDroid Setup running on a Raspberry Pi 500](screenshot.png)
+
 ## Install
 
 ```bash
